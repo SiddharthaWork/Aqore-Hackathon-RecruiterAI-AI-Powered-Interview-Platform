@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Vapi from '@vapi-ai/web';
-import { Mic, StopCircle, Upload, FileText, Briefcase, Clock, AlertCircle, RefreshCw, User, MessageCircle, TrendingUp, Award, BarChart3, PieChart, Star, ArrowLeft } from 'lucide-react';
+import { Mic, StopCircle, Upload, FileText, Briefcase, Clock, AlertCircle, RefreshCw, User, MessageCircle, TrendingUp, Award, BarChart3, PieChart, Star, ArrowLeft, Video } from 'lucide-react';
 
 // Add custom CSS for animations
 const customStyles = `
@@ -46,38 +46,27 @@ const customStyles = `
   }
 `;
 
-export default function InterviewAgent() {
-  const [vapi, setVapi] = useState<Vapi | null>(null);
+export default function InterviewAgent({ interviewId }) {
+  const [vapi, setVapi] = useState(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isSetupComplete, setIsSetupComplete] = useState(false);
-  const [selectedRole, setSelectedRole] = useState('');
-  const [customRole, setCustomRole] = useState('');
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [resumeText, setResumeText] = useState('');
-  const [isProcessingResume, setIsProcessingResume] = useState(false);
+  const [isSetupComplete, setIsSetupComplete] = useState(true);
+  const [selectedRole, setSelectedRole] = useState('React Developer');
   const [interviewDuration, setInterviewDuration] = useState(0);
-  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [connectionStatus, setConnectionStatus] = useState('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [analysisData, setAnalysisData] = useState(null);
   const [interviewTranscript, setInterviewTranscript] = useState('');
-  const [currentSpeaker, setCurrentSpeaker] = useState<'ai' | 'user' | null>(null);
+  const [currentSpeaker, setCurrentSpeaker] = useState(null);
   const [audioLevels, setAudioLevels] = useState(Array(12).fill(0));
   const [gracefulEndingStarted, setGracefulEndingStarted] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const maxDuration = 150; // Exactly 2.5 minutes in seconds
-
-  const predefinedRoles = [
-    'Senior Software Engineer',
-    'Frontend Developer',
-    'Backend Developer',
-    'Full Stack Developer',
-    'DevOps Engineer',
-    'Data Scientist',
-    'Product Manager',
-    'Engineering Manager',
-    'Custom Role'
-  ];
+  const [savedInterviews, setSavedInterviews] = useState([]);
+  const [showThankYou, setShowThankYou] = useState(false);
+  const [isCameraOn, setIsCameraOn] = useState(false);
+  const [videoStream, setVideoStream] = useState(null);
+  const fileInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const maxDuration = 180; // Exactly 3 minutes in seconds
 
   // Simulate audio levels for visualization
   useEffect(() => {
@@ -116,14 +105,7 @@ export default function InterviewAgent() {
           setGracefulEndingStarted(false);
         });
 
-        v.on('call-end', () => {
-          console.log('Interview ended');
-          setIsSpeaking(false);
-          setInterviewDuration(0);
-          setConnectionStatus('idle');
-          setCurrentSpeaker(null);
-          generateAnalysis();
-        });
+        v.on('call-end', onCallEnded);
 
         v.on('error', (error) => {
           console.error('Vapi error:', error);
@@ -181,6 +163,12 @@ export default function InterviewAgent() {
     };
   }, []);
 
+  useEffect(() => {
+    if (videoRef.current && videoStream) {
+      videoRef.current.srcObject = videoStream;
+    }
+  }, [videoStream]);
+
   // Enhanced timer with graceful ending
   useEffect(() => {
     let interval = null;
@@ -213,140 +201,44 @@ export default function InterviewAgent() {
     };
   }, [isSpeaking, gracefulEndingStarted, vapi]);
 
-  const extractTextFromPDF = async (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      
-      reader.onload = async (e) => {
-        try {
-          const arrayBuffer = e.target?.result;
-          const uint8Array = new Uint8Array(arrayBuffer);
-          
-          let text = '';
-          let inTextObject = false;
-          
-          for (let i = 0; i < uint8Array.length - 1; i++) {
-            const char = String.fromCharCode(uint8Array[i]);
-            const nextChar = String.fromCharCode(uint8Array[i + 1]);
-            
-            if (char === 'B' && nextChar === 'T') {
-              inTextObject = true;
-              continue;
-            }
-            if (char === 'E' && nextChar === 'T') {
-              inTextObject = false;
-              text += ' ';
-              continue;
-            }
-            
-            if (inTextObject || char.match(/[a-zA-Z0-9\s\.,\-\(\)@\+]/)) {
-              text += char;
-            }
-          }
-          
-          text = text
-            .replace(/\s+/g, ' ')
-            .replace(/[^\w\s\.,\-\(\)@\+]/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-          
-          if (text.length < 100) {
-            text = `Resume Analysis for ${file.name}:
-            
-            Professional Background:
-            - Years of experience in ${selectedRole === 'Custom Role' ? customRole : selectedRole}
-            - Technical skills and competencies
-            - Previous roles and responsibilities
-            - Educational background
-            
-            Key Projects to Discuss:
-            - Software development projects
-            - System design and architecture work
-            - Team collaboration and leadership examples
-            - Problem-solving and innovation instances
-            - Performance improvements and optimizations
-            
-            Interview Focus Areas:
-            - Technical depth in relevant technologies
-            - Project management and delivery experience
-            - Code quality and best practices
-            - Scalability and performance considerations
-            - Team dynamics and mentoring experience
-            
-            Please reference specific projects, technologies, and achievements from the candidate's background during the interview.`;
-          }
-          
-          resolve(text);
-        } catch (error) {
-          reject(error);
-        }
-      };
-      
-      reader.onerror = () => reject(new Error('Failed to read PDF file'));
-      reader.readAsArrayBuffer(file);
-    });
-  };
-
-  const handleFileUpload = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (file.type !== 'application/pdf') {
-      alert('Please upload a PDF file only');
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      alert('File size too large. Please upload a PDF under 10MB');
-      return;
-    }
-
-    setResumeFile(file);
-    setIsProcessingResume(true);
-    setErrorMessage('');
-    
-    try {
-      const extractedText = await extractTextFromPDF(file);
-      setResumeText(extractedText);
-      console.log('Extracted resume text length:', extractedText.length);
-    } catch (error) {
-      console.error('Error processing PDF:', error);
-      setResumeText(`Resume uploaded: ${file.name}. Interview will focus on ${selectedRole === 'Custom Role' ? customRole : selectedRole} role requirements, technical projects, system design experience, and leadership examples.`);
-    } finally {
-      setIsProcessingResume(false);
-    }
-  };
-
   const generateSystemPrompt = () => {
-    const role = selectedRole === 'Custom Role' ? customRole : selectedRole;
+    const role = selectedRole === 'Custom Role' ? 'React Developer' : selectedRole;
     
-    return `You are an experienced technical interviewer conducting a focused 2.5-minute interview for the ${role} position. 
+    return `You are an experienced technical interviewer conducting a focused 3-minute interview for the ${role} position. 
 
 CRITICAL TIMING INSTRUCTIONS:
-- You have EXACTLY 2.5 minutes (150 seconds) total
+- You have EXACTLY 3 minutes (150 seconds) total
 - At 2 minutes, you'll receive a signal to start wrapping up
 - Always end gracefully with closing remarks
 - Keep responses concise but thorough
 
 INTERVIEW STRUCTURE:
 1. Opening (15-20 seconds): 
-   "Hi! I'm excited to learn about your background. Since we have a focused 2.5-minute session, let's dive right in."
+   "Hi! I'm excited to learn about your background. Since we have a focused 3-minute session, let's dive right in."
 
 2. Core Technical Discussion (1.5-2 minutes):
    Based on the resume below, ask about:
 
 RESUME CONTENT:
-${resumeText}
+Professional Background:
+- Years of experience in React Development
+- Technical skills and competencies
+- Previous roles and responsibilities
+- Educational background
 
-SPECIFIC AREAS TO EXPLORE:
-- **Technical Projects**: Ask about specific projects mentioned, technologies used, challenges faced
-- **System Design**: Inquire about architecture decisions, scalability considerations
-- **Problem Solving**: Request examples of complex technical problems they've solved
-- **Code Quality**: Discuss their approach to testing, code reviews, best practices
-- **Leadership**: If applicable, ask about mentoring, team leadership, or technical guidance
+Key Projects to Discuss:
+- Software development projects
+- System design and architecture work
+- Team collaboration and leadership examples
+- Problem-solving and innovation instances
+- Performance improvements and optimizations
 
-3. Graceful Closing (15-20 seconds):
-   When time is running short: "This has been a great conversation. Thank you for sharing your insights about [reference specific topic discussed]. We'll be in touch soon with next steps!"
+Interview Focus Areas:
+- Technical depth in relevant technologies
+- Project management and delivery experience
+- Code quality and best practices
+- Scalability and performance considerations
+- Team dynamics and mentoring experience
 
 BEHAVIORAL GUIDELINES:
 - Reference specific items from their resume (projects, companies, technologies)
@@ -364,7 +256,7 @@ IMPORTANT CONSTRAINTS:
   };
 
   const startInterview = async () => {
-    if (!vapi || !selectedRole || !resumeFile || !resumeText) return;
+    if (!vapi) return;
 
     try {
       setConnectionStatus('connecting');
@@ -395,7 +287,7 @@ IMPORTANT CONSTRAINTS:
           provider: '11labs',
           voiceId: voiceId
         },
-        firstMessage: `Hi! I'm excited to learn about your background and experience. Since we have a focused 2.5-minute session, let's dive right in. Could you start by telling me about one of the most interesting technical projects you've worked on recently?`,
+        firstMessage: `Hi! I'm excited to learn about your background and experience. Since we have a focused 3-minute session, let's dive right in. Could you start by telling me about one of the most interesting technical projects you've worked on recently?`,
         transcriber: {
           provider: 'deepgram',
           model: 'nova-2',
@@ -417,36 +309,67 @@ IMPORTANT CONSTRAINTS:
     }
   };
 
-  const generateAnalysis = () => {
-    // Simulate analysis based on interview duration and basic metrics
-    const completionRate = Math.min((interviewDuration / maxDuration) * 100, 100);
-    const engagementScore = Math.floor(Math.random() * 3) + 7; // 7-10 range
-    const technicalScore = Math.floor(Math.random() * 3) + 7;
-    const communicationScore = Math.floor(Math.random() * 3) + 8;
-    const overallScore = Math.round((engagementScore + technicalScore + communicationScore) / 3 * 10) / 10;
-
-    setAnalysisData({
-      overallScore,
-      completionRate,
-      duration: interviewDuration,
+  const generateAnalysis = async () => {
+    const analysis = {
+      overallScore: 8.7,
       scores: {
-        technical: technicalScore,
-        communication: communicationScore,
-        engagement: engagementScore
+        technical: 8.5,
+        communication: 9.0,
+        engagement: 8.5
       },
+      duration: interviewDuration,
+      completionRate: 100,
       insights: [
-        'Strong technical communication skills demonstrated',
-        'Good grasp of relevant technologies and concepts',
-        'Showed enthusiasm and engagement throughout',
-        'Provided concrete examples from experience'
+        'Strong technical depth in React and state management',
+        'Excellent communication of complex concepts',
+        'Demonstrated problem-solving skills with relevant examples'
       ],
       recommendations: [
-        'Consider diving deeper into system design concepts',
-        'Prepare more specific metrics and impact examples',
+        'Expand knowledge in backend technologies',
         'Practice explaining complex technical concepts simply'
       ]
-    });
-    setShowAnalysis(true);
+    };
+    
+    setAnalysisData(analysis);
+    
+    try {
+      await saveAnalysisData({
+        summaryId: interviewId,
+        role: selectedRole,
+        overallScore: analysis.overallScore,
+        scores: analysis.scores,
+        duration: analysis.duration,
+        completionRate: analysis.completionRate,
+        insights: analysis.insights,
+        recommendations: analysis.recommendations
+      });
+      setShowThankYou(true);
+    } catch (error) {
+      console.error('Failed to save analysis data', error);
+      // Even if save fails, show thank you
+      setShowThankYou(true);
+    }
+  };
+
+  const saveAnalysisData = async (data) => {
+    try {
+      const response = await fetch('http://localhost:4000/api/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const result = await response.json();
+      console.log('Interview summary saved:', result);
+    } catch (error) {
+      console.error('Failed to save interview summary:', error);
+    }
+  };
+
+  const onCallEnded = async () => {
+    console.log('Call ended');
+    setConnectionStatus('idle');
+    setGracefulEndingStarted(false);
+    await generateAnalysis();
   };
 
   const resetInterview = () => {
@@ -455,6 +378,7 @@ IMPORTANT CONSTRAINTS:
     setInterviewDuration(0);
     setIsSpeaking(false);
     setShowAnalysis(false);
+    setShowThankYou(false);
     setAnalysisData(null);
     setGracefulEndingStarted(false);
   };
@@ -465,7 +389,26 @@ IMPORTANT CONSTRAINTS:
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const canStartInterview = selectedRole && resumeFile && resumeText && !isProcessingResume && (selectedRole !== 'Custom Role' || customRole.trim()) && connectionStatus !== 'connecting';
+  const canStartInterview = connectionStatus !== 'connecting';
+
+  const toggleCamera = async () => {
+    if (isCameraOn) {
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+      }
+      setIsCameraOn(false);
+      setVideoStream(null);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        setVideoStream(stream);
+        setIsCameraOn(true);
+      } catch (err) {
+        console.error("Error accessing camera: ", err);
+        setErrorMessage("Could not access camera. Please check permissions and try again.");
+      }
+    }
+  };
 
   const ErrorDisplay = () => (
     <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-4">
@@ -504,7 +447,7 @@ IMPORTANT CONSTRAINTS:
     );
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 overflow-y-auto">
+      <div className="min-h-screen bg-gradient-to-br from-white via-sky-600 to-white p-4 overflow-y-auto">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="text-center mb-8">
@@ -513,14 +456,14 @@ IMPORTANT CONSTRAINTS:
               <h1 className="text-2xl font-bold text-white">Interview Analysis</h1>
             </div>
             <p className="text-gray-300">
-              {selectedRole === 'Custom Role' ? customRole : selectedRole} Position
+              {selectedRole} Position
             </p>
           </div>
 
           {/* Overall Score */}
           <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 mb-6 text-center">
             <div className="relative inline-block">
-              <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-purple-500 to-blue-500 flex items-center justify-center mb-4 mx-auto">
+              <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-white to-blue-500 flex items-center justify-center mb-4 mx-auto">
                 <div className="text-4xl font-bold text-white">
                   {analysisData.overallScore}
                 </div>
@@ -557,7 +500,7 @@ IMPORTANT CONSTRAINTS:
               title="Engagement" 
               score={analysisData.scores.engagement} 
               icon={TrendingUp}
-              color="from-purple-500 to-pink-500"
+              color="from-white to-pink-500"
             />
           </div>
 
@@ -597,7 +540,7 @@ IMPORTANT CONSTRAINTS:
                     <span className="text-gray-300 capitalize w-24 text-sm">{key}</span>
                     <div className="flex-1 bg-gray-700 rounded-full h-2">
                       <div 
-                        className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-1000"
+                        className="bg-gradient-to-r from-white to-blue-500 h-2 rounded-full transition-all duration-1000"
                         style={{ width: `${(value/10) * 100}%` }}
                       />
                     </div>
@@ -661,134 +604,42 @@ IMPORTANT CONSTRAINTS:
     );
   };
 
-  if (showAnalysis) {
-    return <AnalysisDashboard />;
-  }
-
-  if (!isSetupComplete) {
+  if (showThankYou) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-        <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 shadow-2xl border border-white/20 max-w-lg w-full">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">AI Interview Setup</h1>
-            <p className="text-gray-300">Prepare for your 2.5-minute personalized interview</p>
-          </div>
-
-          {errorMessage && <ErrorDisplay />}
-
-          <div className="mb-6">
-            <label className="block text-white font-medium mb-3 flex items-center gap-2">
-              <Briefcase size={18} />
-              Select Interview Role
-            </label>
-            <select
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value)}
-              className="w-full bg-black/20 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="">Choose a role...</option>
-              {predefinedRoles.map(role => (
-                <option key={role} value={role} className="bg-gray-800">
-                  {role}
-                </option>
-              ))}
-            </select>
-            
-            {selectedRole === 'Custom Role' && (
-              <input
-                type="text"
-                placeholder="Enter custom role title..."
-                value={customRole}
-                onChange={(e) => setCustomRole(e.target.value)}
-                className="w-full mt-3 bg-black/20 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            )}
-          </div>
-
-          <div className="mb-8">
-            <label className="block text-white font-medium mb-3 flex items-center gap-2">
-              <FileText size={18} />
-              Upload Resume (PDF)
-            </label>
-            <div className="relative">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isProcessingResume}
-                className="w-full bg-black/20 border-2 border-dashed border-white/30 rounded-xl px-4 py-6 text-white hover:border-purple-400 transition-colors flex flex-col items-center gap-2 disabled:opacity-50"
-              >
-                {isProcessingResume ? (
-                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent" />
-                ) : (
-                  <Upload size={24} />
-                )}
-                {resumeFile ? (
-                  <div className="text-center">
-                    <p className="text-green-400 font-medium">{resumeFile.name}</p>
-                    {isProcessingResume ? (
-                      <p className="text-sm text-yellow-400">Processing resume...</p>
-                    ) : resumeText ? (
-                      <p className="text-sm text-green-400">✓ Resume processed successfully</p>
-                    ) : (
-                      <p className="text-sm text-gray-400">Click to change</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <p>Click to upload your resume</p>
-                    <p className="text-sm text-gray-400">PDF files only (max 10MB)</p>
-                  </div>
-                )}
-              </button>
-            </div>
-            
-            {resumeText && (
-              <div className="mt-3 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                <div className="flex items-center gap-2 text-green-400 text-sm">
-                  <AlertCircle size={16} />
-                  Resume content extracted successfully
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  The AI will reference your projects and experience during the interview
-                </p>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={() => setIsSetupComplete(true)}
-            disabled={!canStartInterview}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 text-white px-6 py-4 rounded-2xl font-medium transition-all duration-200 disabled:cursor-not-allowed"
+      <div className="min-h-screen bg-gradient-to-br from-white via-blue-600/80 to-white flex items-center justify-center p-4">
+        <div className="text-center max-w-2xl">
+          <h1 className="text-4xl font-bold text-white mb-6">Thank You for the Interview!</h1>
+          <p className="text-xl text-gray-200 mb-8">
+            Your interview has been completed successfully. We will review your performance and get back to you soon.
+          </p>
+          {/* <button
+            onClick={() => {
+              setShowThankYou(false);
+              resetInterview();
+            }}
+            className="bg-gradient-to-r from-blue-600 to-white text-black font-bold py-3 px-8 rounded-xl text-lg transition-all hover:from-blue-700 hover:to-gray-200"
           >
-            {isProcessingResume ? 'Processing Resume...' : 
-             connectionStatus === 'connecting' ? 'Connecting...' : 
-             'Continue to Interview'}
-          </button>
+            Start New Interview
+          </button> */}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-white via-blue-600/80 to-white p-4">
       <div className="max-w-4xl mx-auto">
         {/* Interview Header */}
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
           <div className="flex items-center gap-3 mb-4 sm:mb-0">
-            <div className="bg-white/10 backdrop-blur-lg rounded-xl p-2">
-              <Briefcase className="text-purple-400" size={24} />
+            <div className="bg-white/10 backdrop-blur-lg rounded-xl p-2 text-black">
+              <Briefcase className="text-blue-600" size={24} />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">
-                {selectedRole === 'Custom Role' ? customRole : selectedRole} Interview
+              <h1 className="text-xl font-bold text-black">
+                {selectedRole} Interview
               </h1>
-              <p className="text-gray-400 text-sm">2.5-minute technical screening</p>
+              <p className="text-black text-sm">3-minute technical screening</p>
             </div>
           </div>
           
@@ -804,7 +655,7 @@ IMPORTANT CONSTRAINTS:
           {audioLevels.map((level, index) => (
             <div
               key={index}
-              className="w-2 bg-purple-500 rounded-t-sm transition-all duration-75"
+              className="w-2 bg-white rounded-t-sm transition-all duration-75"
               style={{
                 height: `${level}%`,
                 opacity: currentSpeaker === 'ai' ? 0.6 : currentSpeaker === 'user' ? 1 : 0.3,
@@ -822,7 +673,7 @@ IMPORTANT CONSTRAINTS:
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Panel - Controls */}
           <div className="lg:col-span-1">
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-6">
+            <div className="bg-white/20 backdrop-blur-lg rounded-2xl p-6 mb-6">
               <h2 className="text-lg font-semibold text-white mb-4">Interview Controls</h2>
               
               {errorMessage && <ErrorDisplay />}
@@ -834,7 +685,7 @@ IMPORTANT CONSTRAINTS:
                   className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
                     isSpeaking
                       ? 'bg-red-600 hover:bg-red-700 text-white'
-                      : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white'
+                      : 'bg-gradient-to-r from-black to-blue-600 hover:from-black hover:to-blue-700 text-white font-bold'
                   } ${connectionStatus === 'connecting' ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {isSpeaking ? (
@@ -851,38 +702,43 @@ IMPORTANT CONSTRAINTS:
                 </button>
 
                 <button
+                  onClick={toggleCamera}
+                  className="w-full flex items-center justify-center gap-2 bg-black/50 hover:bg-black/40 text-white px-4 py-3 rounded-xl font-medium transition-all duration-200"
+                >
+                  <Video size={18} />
+                  {isCameraOn ? 'Turn Off Camera' : 'Turn On Camera'}
+                </button>
+
+                <button
                   onClick={() => {
-                    setShowAnalysis(false);
+                    setShowThankYou(false);
                     setIsSetupComplete(false);
                     resetInterview();
                   }}
-                  className="w-full flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-3 rounded-xl font-medium transition-all duration-200"
+                  className="w-full flex items-center justify-center gap-2 bg-black/50 hover:bg-black/40 text-white px-4 py-3 rounded-xl font-medium transition-all duration-200"
                 >
                   <RefreshCw size={18} />
                   Reset Interview
                 </button>
               </div>
+                      {/* Video Display */}
             </div>
+        {isCameraOn && (
+          <div className="mt-4 bg-black/20 p-4 rounded-xl">
+            <video 
+              ref={videoRef} 
+              autoPlay 
+              playsInline 
+              className="w-full h-auto max-h-48 object-contain rounded-lg"
+            />
+          </div>
+        )}
 
-            {/* Resume Preview */}
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6">
-              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <FileText size={18} />
-                Resume Summary
-              </h2>
-              <div className="bg-black/20 rounded-xl p-4 h-48 overflow-y-auto">
-                {resumeText ? (
-                  <p className="text-gray-300 text-sm whitespace-pre-line">{resumeText.substring(0, 500)}{resumeText.length > 500 ? '...' : ''}</p>
-                ) : (
-                  <p className="text-gray-500 text-sm">No resume uploaded</p>
-                )}
-              </div>
-            </div>
           </div>
 
           {/* Right Panel - Transcript */}
           <div className="lg:col-span-2">
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 h-full">
+            <div className="bg-white/20 backdrop-blur-lg rounded-2xl p-6 h-full">
               <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                 <MessageCircle size={18} />
                 Interview Transcript
@@ -896,11 +752,11 @@ IMPORTANT CONSTRAINTS:
                           key={index} 
                           className={`p-3 rounded-lg max-w-[90%] ${
                             line.startsWith('AI:') 
-                              ? 'bg-purple-500/20 mr-auto border-l-4 border-purple-500'
-                              : 'bg-blue-500/20 ml-auto border-r-4 border-blue-500 text-right'
+                              ? 'bg-white mr-auto border-l-4 border-white'
+                              : 'bg-white text-black ml-auto border-r-4 border-blue-500 text-right'
                           }`}
                         >
-                          <p className="text-white text-sm">
+                          <p className="text-black text-sm">
                             {line.replace('AI:', '').replace('User:', '').trim()}
                           </p>
                         </div>
@@ -912,7 +768,7 @@ IMPORTANT CONSTRAINTS:
                     <div className="mb-4 opacity-50">
                       <Mic size={40} className="text-gray-400" />
                     </div>
-                    <p className="text-gray-500">
+                    <p className="text-white">
                       {connectionStatus === 'connecting' 
                         ? 'Starting interview session...' 
                         : 'Transcript will appear here once the interview begins'}
@@ -924,12 +780,14 @@ IMPORTANT CONSTRAINTS:
           </div>
         </div>
 
+
+
         {/* Analysis Button */}
         {interviewDuration > 0 && !isSpeaking && (
           <div className="mt-6 flex justify-center">
             <button
               onClick={() => generateAnalysis()}
-              className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200"
+              className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-black px-6 py-3 rounded-xl font-medium transition-all duration-200"
             >
               <BarChart3 size={18} />
               View Performance Analysis

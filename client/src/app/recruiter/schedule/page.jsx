@@ -25,54 +25,56 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import toast from "react-hot-toast"
+import { useRouter } from "next/navigation"
+
+const INITIAL_CANDIDATES = [
+  {
+    id: "1",
+    name: "Hari Shrestha",
+    email: "",
+    position: "Senior Frontend Developer",
+    jobDescription: "We are looking for a skilled Frontend Developer with React experience.",
+    appliedDate: "2024-01-15T10:30:00Z",
+    avatar: "/placeholder.svg?height=40&width=40",
+    skills: ["React", "TypeScript", "Next.js"],
+    experience: "5 years",
+    status: "ready",
+    resumeFilename: "resume_1752915794473.pdf",
+  },
+  {
+    id: "2",
+    name: "Ram Shrestha",
+    email: "siddharthashresthasir@gmail.com",
+    position: "Full Stack Engineer",
+    jobDescription: "We are looking for a skilled Full Stack Engineer with Node.js experience.",
+    appliedDate: "2024-01-14T14:20:00Z",
+    avatar: "/placeholder.svg?height=40&width=40",
+    skills: ["Node.js", "Python", "MongoDB"],
+    experience: "3 years",
+    status: "ready",
+    resumeFilename: "resume_1752915794473.pdf",
+  },
+  {
+    id: "3",
+    name: "Siddhartha Shrestha",
+    email: "siddharthashresthasir@gmail.com",
+    position: "React Developer",
+    jobDescription: "We are looking for a skilled React Developer with Node.js experience.",
+    appliedDate: "2024-01-13T09:15:00Z",
+    avatar: "/placeholder.svg?height=40&width=40",
+    skills: ["React", "Node.js", "MongoDB"],
+    experience: "3 years",
+    status: "ready",
+    resumeFilename: "resume_1752915794473.pdf",
+  }
+];
 
 export default function ScheduleInterviewPage() {
-  const [candidatesForInterview, setCandidatesForInterview] = useState([
-    {
-      id: "1",
-      name: "Siddhartha Shrestha",
-      email: "",
-      position: "Senior Frontend Developer",
-      jobDescription: "We are looking for a skilled Frontend Developer with React experience.",
-      appliedDate: "2024-01-15T10:30:00Z",
-      avatar: "/placeholder.svg?height=40&width=40",
-      skills: ["React", "TypeScript", "Next.js"],
-      experience: "5 years",
-      status: "ready",
-      resumeFilename: "resume_1752915794473.pdf",
-    },
-    {
-      id: "2",
-      name: "Ram Shrestha",
-      email: "siddharthashresthasir@gmail.com",
-      position: "Full Stack Engineer",
-      jobDescription: "We are looking for a skilled Full Stack Engineer with Node.js experience.",
-      appliedDate: "2024-01-14T14:20:00Z",
-      avatar: "/placeholder.svg?height=40&width=40",
-      skills: ["Node.js", "Python", "MongoDB"],
-      experience: "3 years",
-      status: "ready",
-      resumeFilename: "resume_1752915794473.pdf",
-    },
-    {
-      id: "3",
-      name: "Hari Shrestha",
-      email: "siddharthashresthasir@gmail.com",
-      position: "UI/UX Designer",
-      jobDescription: "We are looking for a skilled UI/UX Designer with Figma experience.",
-      appliedDate: "2024-01-13T09:15:00Z",
-      avatar: "/placeholder.svg?height=40&width=40",
-      skills: ["Figma", "Adobe Creative Suite"],
-      experience: "4 years",
-      status: "ready",
-      resumeFilename: "resume_1752915794473.pdf",
-    }
-  ]);
-
+  const [candidatesForInterview, setCandidatesForInterview] = useState([]);
   const [scheduledInterviews, setScheduledInterviews] = useState([
     {
       id: "int-1",
-      candidateId: "4",
+      candidateId: "1",
       candidateName: "Om Shrestha",
       candidateEmail: "om.shrestha@email.com",
       position: "Backend Developer",
@@ -84,14 +86,13 @@ export default function ScheduleInterviewPage() {
     
   ]);
 
-  const [selectedCandidate, setSelectedCandidate] = useState(null)
   const [isScheduling, setIsScheduling] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [interviewForm, setInterviewForm] = useState({
     jobDescription: "",
     date: null,
     time: "",
-    duration: "15",
+    duration: "3",
     categories: []
   })
   const [userId, setUserId] = useState("")
@@ -102,6 +103,8 @@ export default function ScheduleInterviewPage() {
   const [editedQuestion, setEditedQuestion] = useState('');
   const [isEditingAll, setIsEditingAll] = useState(false);
   const [editedAllQuestions, setEditedAllQuestions] = useState('');
+
+  const router = useRouter();
 
   const handleSaveAll = () => {
     const newQuestions = editedAllQuestions.split('\n');
@@ -115,6 +118,31 @@ export default function ScheduleInterviewPage() {
     setUserId(userId);
   }, []);
 
+  // Load scheduled interviews from localStorage on mount
+  useEffect(() => {
+    const storedInterviews = localStorage.getItem('scheduledInterviews');
+    let scheduled = [];
+    if (storedInterviews) {
+      try {
+        scheduled = JSON.parse(storedInterviews);
+      } catch (error) {
+        console.error('Failed to parse stored interviews', error);
+      }
+    }
+    setScheduledInterviews(scheduled);
+
+    // Filter initial candidates to remove those that are scheduled
+    const filteredCandidates = INITIAL_CANDIDATES.filter(candidate => 
+      !scheduled.some(interview => interview.candidateId === candidate.id)
+    );
+    setCandidatesForInterview(filteredCandidates);
+  }, []);
+
+  // Save scheduled interviews to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('scheduledInterviews', JSON.stringify(scheduledInterviews));
+  }, [scheduledInterviews]);
+
   const handleScheduleInterview = async (candidate) => {
     setIsScheduling(true);
     
@@ -126,7 +154,7 @@ export default function ScheduleInterviewPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: userId,
+          userId: candidate.id,
           userEmail: "siddharthashresthasir@gmail.com",
           jobDescription: interviewForm.jobDescription,
           date: interviewForm.date,
@@ -134,7 +162,7 @@ export default function ScheduleInterviewPage() {
           duration: interviewForm.duration,
           categories: interviewForm.categories,
           questions: generatedQuestions,
-          link:"www.google.com"
+          link:"http://localhost:3000/interviewagent/" + userId
         }),
       });
 
@@ -154,11 +182,6 @@ export default function ScheduleInterviewPage() {
         return;
       }
 
-      // Parse the date and time into a Date object
-      // const [year, month, day] = interviewForm.date.split('-').map(Number);
-      // const [hours, minutes] = interviewForm.time.split(':').map(Number);
-      // const scheduledDate = new Date(interviewForm.date + ' ' + interviewForm.time).toISOString();
-
       // Create new scheduled interview object
       const newScheduledInterview = {
         id: `int-${Date.now()}`,
@@ -168,20 +191,19 @@ export default function ScheduleInterviewPage() {
         position: candidate.position,
         scheduledDate: interviewForm.date,
         status: "scheduled",
-        interviewLink: `https://ai-recruiter.com/interview/${candidate.id}-${Date.now()}`,
+        interviewLink: `/interview/${candidate.id}-${Date.now()}`,
         avatar: candidate.avatar,
-      }
+      };
 
       // Update state: remove candidate from candidatesForInterview and add to scheduledInterviews
-      setCandidatesForInterview(prev => prev.filter(c => c.id !== candidate.id))
-      setScheduledInterviews(prev => [...prev, newScheduledInterview])
+      setCandidatesForInterview(prev => prev.filter(c => c.id !== candidate.id));
+      setScheduledInterviews(prev => [...prev, newScheduledInterview]);
 
     } catch (error) {
       console.error('Error saving questions:', error);
       toast.error('Failed to save questions. Please try again.');
     } finally {
       setIsScheduling(false);
-      setSelectedCandidate(null);
     }
   }
 
@@ -354,17 +376,9 @@ export default function ScheduleInterviewPage() {
                       </div>
                     </div>
                   </div>
-                  <Dialog
-                    open={selectedCandidate !== null}
-                    onOpenChange={(open) => {
-                      if (!open) {
-                        setSelectedCandidate(null);
-                      }
-                    }}
-                  >
+                  <Dialog>
                     <DialogTrigger asChild>
                       <Button size="sm" onClick={() => {
-                        setSelectedCandidate(candidate);
                         setInterviewForm(prev => ({
                           ...prev,
                           jobDescription: candidate.jobDescription || ''
@@ -538,7 +552,6 @@ export default function ScheduleInterviewPage() {
         <Card>
           <CardHeader>
             <CardTitle>Scheduled Interviews</CardTitle>
-            <CardDescription>Upcoming AI interviews</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4 h-fit">
@@ -578,7 +591,7 @@ export default function ScheduleInterviewPage() {
                   </div>
 
                   <div className="flex space-x-2 mt-3">
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" onClick={() => router.push(`/recruiter/schedule/summary/${interview.id}`)}>
                       View Details
                     </Button>
                     <Button size="sm" variant="outline">
