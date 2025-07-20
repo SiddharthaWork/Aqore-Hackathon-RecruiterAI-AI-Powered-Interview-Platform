@@ -106,7 +106,7 @@ export default function RecruiterLayout({ children }) {
                   <Button variant="ghost" className="w-full justify-start px-3 py-2 h-auto">
                     <Avatar className="h-8 w-8 mr-3">
                       <AvatarImage src="/placeholder.svg?height=32&width=32" />
-                      <AvatarFallback>JD</AvatarFallback>
+                      <AvatarFallback>SS</AvatarFallback>
                     </Avatar>
                     <div className="text-left">
                       <div className="text-sm font-medium">Siddhartha Shrestha</div>
@@ -162,7 +162,7 @@ export default function RecruiterLayout({ children }) {
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src="/placeholder.svg?height=32&width=32" />
-                        <AvatarFallback>JD</AvatarFallback>
+                        <AvatarFallback>SS</AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -71,21 +71,7 @@ const INITIAL_CANDIDATES = [
 
 export default function ScheduleInterviewPage() {
   const [candidatesForInterview, setCandidatesForInterview] = useState([]);
-  const [scheduledInterviews, setScheduledInterviews] = useState([
-    {
-      id: "int-1",
-      candidateId: "1",
-      candidateName: "Om Shrestha",
-      candidateEmail: "om.shrestha@email.com",
-      position: "Backend Developer",
-      scheduledDate: "2024-01-16T14:00:00Z",
-      status: "scheduled",
-      interviewLink: "https://ai-recruiter.com/interview/abc123",
-      avatar: "/placeholder.svg?height=40&width=40",
-    },
-    
-  ]);
-
+  const [scheduledInterviews, setScheduledInterviews] = useState([]);
   const [isScheduling, setIsScheduling] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [interviewForm, setInterviewForm] = useState({
@@ -118,29 +104,24 @@ export default function ScheduleInterviewPage() {
     setUserId(userId);
   }, []);
 
-  // Load scheduled interviews from localStorage on mount
   useEffect(() => {
     const storedInterviews = localStorage.getItem('scheduledInterviews');
-    let scheduled = [];
     if (storedInterviews) {
-      try {
-        scheduled = JSON.parse(storedInterviews);
-      } catch (error) {
-        console.error('Failed to parse stored interviews', error);
-      }
+      setScheduledInterviews(JSON.parse(storedInterviews));
     }
-    setScheduledInterviews(scheduled);
-
-    // Filter initial candidates to remove those that are scheduled
-    const filteredCandidates = INITIAL_CANDIDATES.filter(candidate => 
-      !scheduled.some(interview => interview.candidateId === candidate.id)
-    );
-    setCandidatesForInterview(filteredCandidates);
   }, []);
 
-  // Save scheduled interviews to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('scheduledInterviews', JSON.stringify(scheduledInterviews));
+    if (scheduledInterviews.length > 0) {
+      localStorage.setItem('scheduledInterviews', JSON.stringify(scheduledInterviews));
+    }
+  }, [scheduledInterviews]);
+
+  useEffect(() => {
+    const filteredCandidates = INITIAL_CANDIDATES.filter(candidate => 
+      !scheduledInterviews.some(interview => interview.candidateId === candidate.id)
+    );
+    setCandidatesForInterview(filteredCandidates);
   }, [scheduledInterviews]);
 
   const handleScheduleInterview = async (candidate) => {
@@ -162,7 +143,7 @@ export default function ScheduleInterviewPage() {
           duration: interviewForm.duration,
           categories: interviewForm.categories,
           questions: generatedQuestions,
-          link:"http://localhost:3000/interviewagent/" + userId
+          link:"http://localhost:3000/interviewagent/" + candidate.id
         }),
       });
 
@@ -472,6 +453,13 @@ export default function ScheduleInterviewPage() {
                             </Select>
                           </div>
                         </div>
+
+                        {/* candidate resume */}
+                        <div className="mt-4">
+                          <h1 className="font-semibold text-sm">View Applicant Resume</h1>
+                          <Button variant="outline" className="mt-2">View Resume</Button>
+                        </div>
+                        
                         
                         <div className="mt-4">
                           <div className="flex gap-2">
@@ -591,7 +579,7 @@ export default function ScheduleInterviewPage() {
                   </div>
 
                   <div className="flex space-x-2 mt-3">
-                    <Button size="sm" variant="outline" onClick={() => router.push(`/recruiter/schedule/summary/${interview.id}`)}>
+                    <Button size="sm" variant="outline" onClick={() => router.push(`/recruiter/schedule/summary/${interview.candidateId}`)}>
                       View Details
                     </Button>
                     <Button size="sm" variant="outline">

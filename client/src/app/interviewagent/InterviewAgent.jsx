@@ -287,7 +287,7 @@ IMPORTANT CONSTRAINTS:
           provider: '11labs',
           voiceId: voiceId
         },
-        firstMessage: `Hi! I'm excited to learn about your background and experience. Since we have a focused 3-minute session, let's dive right in. Could you start by telling me about one of the most interesting technical projects you've worked on recently?`,
+        firstMessage: `Hi! Siddhartha I'm excited to learn about your background and experience. Since we have a focused 3-minute session, let's dive right in. Could you start by telling me about one of the most interesting technical projects you've worked on recently?`,
         transcriber: {
           provider: 'deepgram',
           model: 'nova-2',
@@ -709,7 +709,7 @@ IMPORTANT CONSTRAINTS:
                   {isCameraOn ? 'Turn Off Camera' : 'Turn On Camera'}
                 </button>
 
-                <button
+                {/* <button
                   onClick={() => {
                     setShowThankYou(false);
                     setIsSetupComplete(false);
@@ -719,17 +719,17 @@ IMPORTANT CONSTRAINTS:
                 >
                   <RefreshCw size={18} />
                   Reset Interview
-                </button>
+                </button> */}
               </div>
                       {/* Video Display */}
             </div>
         {isCameraOn && (
-          <div className="mt-4 bg-black/20 p-4 rounded-xl">
+          <div className="mt-8 bg-black/20 p-4 rounded-xl">
             <video 
               ref={videoRef} 
               autoPlay 
               playsInline 
-              className="w-full h-auto max-h-48 object-contain rounded-lg"
+              className="w-full h-auto min-h-52 object-contain rounded-lg"
             />
           </div>
         )}
