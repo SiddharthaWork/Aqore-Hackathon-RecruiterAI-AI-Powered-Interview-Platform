@@ -457,7 +457,7 @@ export default function ScheduleInterviewPage() {
                         {/* candidate resume */}
                         <div className="mt-4">
                           <h1 className="font-semibold text-sm">View Applicant Resume</h1>
-                          <Button variant="outline" className="mt-2">View Resume</Button>
+                          <Button variant="outline" className="mt-2" onClick={() => window.open('/Siddhartha_Shrestha-Resume.pdf', '_blank')}>View Resume</Button>
                         </div>
                         
                         

@@ -172,7 +172,7 @@ export default function LoginPage() {
         </Card>
 
         {/* Footer */}
-        <div className="text-center mt-8 text-sm text-gray-500">
+        {/* <div className="text-center mt-8 text-sm text-gray-500">
           <p>
             By signing in, you agree to our{" "}
             <Link href="/terms" className="text-blue-600 hover:text-blue-700 transition-colors">
@@ -183,7 +183,7 @@ export default function LoginPage() {
               Privacy Policy
             </Link>
           </p>
-        </div>
+        </div> */}
       </div>
 
       {/* Floating Elements */}

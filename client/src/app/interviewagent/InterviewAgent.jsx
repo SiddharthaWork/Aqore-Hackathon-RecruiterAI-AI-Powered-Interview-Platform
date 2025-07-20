@@ -206,7 +206,7 @@ export default function InterviewAgent({ interviewId }) {
     
     return `You are an experienced technical interviewer conducting a focused 3-minute interview for the ${role} position. 
 
-CRITICAL TIMING INSTRUCTIONS:
+CRITICAL TIMING INSTRUCTIONS: 
 - You have EXACTLY 3 minutes (150 seconds) total
 - At 2 minutes, you'll receive a signal to start wrapping up
 - Always end gracefully with closing remarks

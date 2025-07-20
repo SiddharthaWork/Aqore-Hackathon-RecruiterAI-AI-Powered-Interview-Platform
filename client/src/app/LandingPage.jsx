@@ -69,7 +69,7 @@ import {
               </div>
               <div className="mt-12">
                 <img
-                  src="/placeholder.svg?height=400&width=800"
+                  src="/hero.png"
                   alt="AI Recruiter Dashboard"
                   className="mx-auto rounded-lg shadow-2xl border border-gray-200"
                 />
@@ -228,7 +228,7 @@ import {
   
               <div>
                 <img
-                  src="/placeholder.svg?height=500&width=600"
+                  src="/footer.png"
                   alt="Benefits of AI Recruiting"
                   className="rounded-lg shadow-xl"
                 />

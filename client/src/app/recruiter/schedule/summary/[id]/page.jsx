@@ -2,12 +2,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import toast from 'react-hot-toast';
 
 export default function SummaryPage() {
   const { id } = useParams();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isShortlisted, setIsShortlisted] = useState(false);
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -49,7 +51,17 @@ export default function SummaryPage() {
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Interview Summary</h1>
-        <Button variant="outline" className="mt-2 bg-blue-500 text-white">Shortlist Applicant</Button>
+        <Button 
+          variant="outline" 
+          className="mt-2 bg-blue-500 text-white"
+          onClick={() => {
+            setIsShortlisted(true);
+            toast.success('Shortlisted');
+          }}
+          disabled={isShortlisted}
+        >
+          {isShortlisted ? 'Shortlisted' : 'Shortlist Applicant'}
+        </Button>
       </div>
       
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
