@@ -21,7 +21,7 @@ const customStyles = `
     0%, 100% { 
       box-shadow: 0 0 5px rgba(168, 85, 247, 0.4); 
     }
-    50% { 
+    50% {
       box-shadow: 0 0 20px rgba(168, 85, 247, 0.8), 0 0 30px rgba(59, 130, 246, 0.6); 
     }
   }
